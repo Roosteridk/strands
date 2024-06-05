@@ -27,6 +27,13 @@ def train_most_probable_matrix(length = 18):
             matrix[abt(word[len(word) - 1])][26][n + 1] += words[word]
     return matrix
 
+def find_prob_word(word):
+    for n, next_letter in enumerate(word[1:]):
+        curr_letter = word[n]
+        prob = matrix[abt(curr_letter)][abt(next_letter)][n]
+    prob *= matrix[abt(word[len(word) - 1])][26][n+1] 
+    return prob       
+        
 matrix = train_most_probable_matrix()
 print(matrix[0][0][0])
 print(matrix[25][4][0])
