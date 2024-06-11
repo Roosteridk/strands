@@ -1,39 +1,56 @@
 import numpy as np
+import math
 
 
 # Maps letter into number between 0 - 25
 def abt(letter):
     return ord(letter) - 97
 
-def train_most_probable_matrix(length = 18):
+
+def train_most_probable_matrix(length=18):
     words = dict()
-    zeProb = 0
     with open("300k.txt", "r") as file:
         for line in file.readlines():
             word, freq = tuple(line.split("\t"))
             words[word] = int(freq)
-            if len(word) > 1 and word[0] == "z" and word[1] == "e":
-                zeProb += int(freq)
-    print(zeProb)
-    matrix = np.zeros((27, 27, length), np.float64)
+    matrix = np.zeros((length, 27, 27), np.float64)
 
     for word in words.keys():
-        if len(word) <= length:
-            if len(word) > 1 and word[0] == "z" and word[1] == "e":
-                zeProb -= words[word]
+        if 3 < len(word) <= 18:
             for n, next_letter in enumerate(word[1:]):
                 curr_letter = word[n]
-                matrix[abt(curr_letter)][abt(next_letter)][n] += words[word]
-            matrix[abt(word[len(word) - 1])][26][n + 1] += words[word]
+                matrix[n][abt(curr_letter)][abt(next_letter)] += words[word]
+            matrix[n + 1][abt(word[len(word) - 1])][26] += words[word]
+    for n in range(17):
+        for curr in range(26):
+            log_freqs = np.log(matrix[n][curr])
+            print(log_freqs)
+            exp_vector = np.exp(log_freqs)
+            print(exp_vector)
+            prob_vector = np.divide((exp_vector), np.sum(exp_vector))
+            print(prob_vector)
+            print(np.sum(prob_vector))
+            quit()
     return matrix
 
-def find_prob_word(word):
-    for n, next_letter in enumerate(word[1:]):
-        curr_letter = word[n]
-        prob = matrix[abt(curr_letter)][abt(next_letter)][n]
-    prob *= matrix[abt(word[len(word) - 1])][26][n+1] 
-    return prob       
-        
+
 matrix = train_most_probable_matrix()
-print(matrix[0][0][0])
-print(matrix[25][4][0])
+
+# Turn matrix values to probabilities
+# for n in range(17):
+#     for curr in range(26):
+#         log_freqs = np.log(matrix[n][curr])
+#         print(log_freqs)
+#         exp_vector = np.exp(log_freqs)
+#         print(exp_vector)
+#         prob_vector = np.divide((exp_vector), np.sum(exp_vector))
+#         print(prob_vector)
+#         print(np.sum(prob_vector))
+#         quit()
+
+
+# Might be better to continually count as we iterate
+# Raid->Raide->Raider, rather than continually
+# check Raid, Raide, Raider
+def find_string_prob(word):
+    return
