@@ -9,7 +9,7 @@ def abt(letter):
 def train_most_probable_matrix(length=18):
     words = dict()
     with open("300k.txt", "r") as file:
-        for line in file.readlines():
+        for line in file.readlines()[30:]:
             word, freq = tuple(line.split("\t"))
             words[word] = int(freq)
     matrix = np.zeros((length, 27, 27), np.float64)
