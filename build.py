@@ -1,5 +1,4 @@
-import numpy as np
-import matplotlib.pyplot as plt
+import json
 
 
 # Maps caharacter onto number between 0 - 25
@@ -13,7 +12,7 @@ def build_prefix_dict(min_length=4, max_length=18):
 
     with open("NWL2020.txt", "r") as file:  # Note: NWL2020 doesnt contain word freqs
         for line in file.readlines():
-            word = line.split(" ")[0]
+            word = line.split(" ")[0].lower()
             if min_length <= len(word) <= max_length:
                 # loop through every prefix in the word. i.e banana -> b, ba, ban, bana, banan, banana
                 for i in range(len(word)):
@@ -27,5 +26,6 @@ def build_prefix_dict(min_length=4, max_length=18):
 
 test = build_prefix_dict()
 print(len(test))
-
+with open("prefixes.json", "w") as outfile:
+    json.dump(test, outfile)
 print([k for k, v in test.items() if v == 0][0])
