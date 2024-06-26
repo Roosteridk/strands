@@ -1,9 +1,6 @@
 import networkx as nx
-import numpy as np
 import matplotlib.pyplot as plt
 import json
-import heapq
-from copy import deepcopy
 
 
 # https://www.nytimes.com/games-assets/strands/2024-06-20.json
@@ -47,7 +44,9 @@ def create_graph(board):
 
 
 def search_words(graph: nx.Graph, length=18):
-    def dfs(curr_node, path, all_paths, length, word):
+    all_paths = set()
+
+    def dfs(curr_node, path, word):
         path.append(curr_node)
         word += graph.nodes[curr_node]["letter"]
 
@@ -57,13 +56,13 @@ def search_words(graph: nx.Graph, length=18):
             if len(path) != length:
                 for neighbor in graph.neighbors(curr_node):
                     if neighbor not in path:
-                        dfs(neighbor, path, all_paths, length, word)
+                        dfs(neighbor, path, word)
         # Backtrack: Remove the current node from the path
         path.pop()
 
-    all_paths = set()
     for node in graph.nodes():
-        dfs(node, [], all_paths, length, "")
+        dfs(node, [], "")
+
     return all_paths
 
 
