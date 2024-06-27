@@ -1,6 +1,7 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 import json
+import numpy as np
 
 
 # https://www.nytimes.com/games-assets/strands/2024-06-20.json
@@ -66,14 +67,103 @@ def search_words(graph: nx.Graph, length=18):
     return all_paths
 
 
+# words = dict()
+# Note: there may be more than one math for the same word
+# for path in paths:
+#     words[("".join(g.nodes[n]["letter"] for n in path))] = path
+# for k, v in dict(sorted(words.items())).items():
+#     print(k, v)
+
+
 g = create_graph(STARTING_BOARD)
 paths = search_words(g)
-words = dict()
-# Note: there may be more than one math for the same word
-for path in paths:
-    words[("".join(g.nodes[n]["letter"] for n in path))] = path
-for k, v in dict(sorted(words.items())).items():
-    print(k, v)
+
+
+# Encode each solution as a binary vector of length n
+def initialize_population(pop_size, num_sets):
+    return np.random.randint(2, size=(pop_size, num_sets))
+
+
+# Takes 25 ms to compute... too slow
+def fitness(solution, H, K):
+    selected_sets = [H[i] for i in range(len(solution)) if solution[i] == 1]
+    union_of_selected = set.union(set(selected_sets)) if selected_sets else set()
+
+    # Penalize if not covering all elements of K
+    fitness_score = len(union_of_selected & K) - len(union_of_selected - K)
+
+    # Penalize for non-disjoint sets
+    for i in range(len(selected_sets)):
+        for j in range(i + 1, len(selected_sets)):
+            if not set(selected_sets[i]).isdisjoint(selected_sets[j]):
+                fitness_score -= 1
+
+    return fitness_score
+
+
+def selection(population, fitnesses):
+    # Select based on fitness proportionate selection (roulette wheel)
+    total_fitness = sum(fitnesses)
+    probs = [f / total_fitness for f in fitnesses]
+    indices = np.random.choice(range(len(population)), size=len(population), p=probs)
+    return np.array(population)[indices]
+
+
+def crossover(parent1, parent2):
+    crossover_point = np.random.randint(1, len(parent1) - 1)
+    child1 = np.concatenate((parent1[:crossover_point], parent2[crossover_point:]))
+    child2 = np.concatenate((parent2[:crossover_point], parent1[crossover_point:]))
+    return child1, child2
+
+
+def mutate(solution, mutation_rate=0.01):
+    for i in range(len(solution)):
+        if np.random.rand() < mutation_rate:
+            solution[i] = 1 - solution[i]  # Flip the bit
+    return solution
+
+
+def genetic_algorithm(H, K, pop_size=10000, num_generations=100, mutation_rate=0.1):
+    num_sets = len(H)
+    population = initialize_population(pop_size, num_sets)
+
+    for generation in range(num_generations):
+        fitnesses = [fitness(individual, H, K) for individual in population]
+
+        # Selection
+        selected_population = selection(population, fitnesses)
+
+        # Crossover
+        next_population = []
+        for i in range(0, len(selected_population), 2):
+            parent1, parent2 = selected_population[i], selected_population[i + 1]
+            child1, child2 = crossover(parent1, parent2)
+            next_population.extend([child1, child2])
+
+        # Mutation
+        population = [
+            mutate(individual, mutation_rate) for individual in next_population
+        ]
+
+        # Print the best fitness score in the current generation
+        best_fitness = max(fitnesses)
+        print(f"Generation {generation}: Best Fitness = {best_fitness}")
+
+        # Early stopping if we find an optimal solution
+        if best_fitness == len(K):
+            break
+
+    # Return the best solution found
+    best_index = np.argmax(fitnesses)
+    return population[best_index]
+
+
+# Example usage
+H = list(paths)
+K = set(g.nodes)
+best_solution = genetic_algorithm(H, K)
+print(best_solution)
+
 
 # def isLegal(value, maxVal):
 #     return value < maxVal and value >= 0
