@@ -2,20 +2,20 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import json
 import numpy as np
-
+from copy import deepcopy
 
 # https://www.nytimes.com/games-assets/strands/2024-06-20.json
 THEME = "They're good for a laugh"
-NO_WORDS = 7
+NUM_WORDS = 7
 STARTING_BOARD = [
-    "CMUNIP",
-    "OMYTEE",
-    "SITCOV",
-    "URDEMS",
-    "BCSHCT",
-    "SFEWIR",
-    "IRBSSE",
-    "ENDCHE",
+    "LLASMO",
+    "IETTEC",
+    "TETERS",
+    "OUECAP",
+    "ALAGMO",
+    "XYETNO",
+    "ANASTE",
+    "LPDIOR",
 ]
 
 PREFIXES = json.load(open("prefixes.json"))
@@ -47,7 +47,7 @@ def create_graph(board):
 def search_words(graph: nx.Graph, length=18):
     all_paths = set()
 
-    def dfs(curr_node, path, word):
+    def dfs(curr_node, path=[], word=""):
         path.append(curr_node)
         word += graph.nodes[curr_node]["letter"]
 
@@ -62,7 +62,7 @@ def search_words(graph: nx.Graph, length=18):
         path.pop()
 
     for node in graph.nodes():
-        dfs(node, [], "")
+        dfs(node)
 
     return all_paths
 
@@ -78,91 +78,157 @@ def search_words(graph: nx.Graph, length=18):
 g = create_graph(STARTING_BOARD)
 paths = search_words(g)
 
+# Initialize Y and X dictionaries
+Y = dict()
+X = dict()
+
+for path in paths:
+    Y[path] = list()
+for node in g.nodes():
+    for path in paths:
+        if node in path:
+            Y[path].append(node)
+
+for node in g.nodes():
+    X[node] = set()
+for path in paths:
+    for node in path:
+        X[node].add(path)
+
+solution = []
+
+
+# https://www.cs.mcgill.ca/~aassaf9/python/algorithm_x.html
+def solve():
+    if not X:  # Solution found
+        return True
+    # Choose node with smallest number of overlapping paths
+    c = min(X, key=lambda k: len(X[k]))
+    if not X[c] or len(solution) > NUM_WORDS:  # No solution
+        return False
+
+    for r in sorted(X[c], key=len, reverse=True):
+        solution.append(r)
+        cols = select(r)
+        if solve():
+            return True
+        # Backtrack: remove the path from the solution add covered paths and nodes back
+        deselect(r, cols)
+        solution.pop()
+
+
+def select(r):
+    cols = []
+    for j in Y[r]:
+        for i in X[j]:
+            for k in Y[i]:
+                if k != j:
+                    X[k].remove(i)
+        cols.append(X.pop(j))
+    return cols
+
+
+def deselect(r, cols):
+    for j in reversed(Y[r]):
+        X[j] = cols.pop()
+        for i in X[j]:
+            for k in Y[i]:
+                if k != j:
+                    X[k].add(i)
+
+
+solve()
+test = []
+for s in solution:
+    for n in s:
+        test.append(n)
+    print("".join([g.nodes[n]["letter"] for n in s]))
+print(test)
 
 # Encode each solution as a binary vector of length n
-def initialize_population(pop_size, num_sets):
-    return np.random.randint(2, size=(pop_size, num_sets))
+# def initialize_population(pop_size, num_sets):
+#     return np.random.randint(2, size=(pop_size, num_sets))
 
 
-# Takes 25 ms to compute... too slow
-def fitness(solution, H, K):
-    selected_sets = [H[i] for i in range(len(solution)) if solution[i] == 1]
-    union_of_selected = set.union(set(selected_sets)) if selected_sets else set()
+# # Takes 25 ms to compute... too slow
+# def fitness(solution, H, K):
+#     selected_sets = [H[i] for i in range(len(solution)) if solution[i] == 1]
+#     union_of_selected = set.union(set(selected_sets)) if selected_sets else set()
 
-    # Penalize if not covering all elements of K
-    fitness_score = len(union_of_selected & K) - len(union_of_selected - K)
+#     # Penalize if not covering all elements of K
+#     fitness_score = len(union_of_selected & K) - len(union_of_selected - K)
 
-    # Penalize for non-disjoint sets
-    for i in range(len(selected_sets)):
-        for j in range(i + 1, len(selected_sets)):
-            if not set(selected_sets[i]).isdisjoint(selected_sets[j]):
-                fitness_score -= 1
+#     # Penalize for non-disjoint sets
+#     for i in range(len(selected_sets)):
+#         for j in range(i + 1, len(selected_sets)):
+#             if not set(selected_sets[i]).isdisjoint(selected_sets[j]):
+#                 fitness_score -= 1
 
-    return fitness_score
-
-
-def selection(population, fitnesses):
-    # Select based on fitness proportionate selection (roulette wheel)
-    total_fitness = sum(fitnesses)
-    probs = [f / total_fitness for f in fitnesses]
-    indices = np.random.choice(range(len(population)), size=len(population), p=probs)
-    return np.array(population)[indices]
+#     return fitness_score
 
 
-def crossover(parent1, parent2):
-    crossover_point = np.random.randint(1, len(parent1) - 1)
-    child1 = np.concatenate((parent1[:crossover_point], parent2[crossover_point:]))
-    child2 = np.concatenate((parent2[:crossover_point], parent1[crossover_point:]))
-    return child1, child2
+# def selection(population, fitnesses):
+#     # Select based on fitness proportionate selection (roulette wheel)
+#     total_fitness = sum(fitnesses)
+#     probs = [f / total_fitness for f in fitnesses]
+#     indices = np.random.choice(range(len(population)), size=len(population), p=probs)
+#     return np.array(population)[indices]
 
 
-def mutate(solution, mutation_rate=0.01):
-    for i in range(len(solution)):
-        if np.random.rand() < mutation_rate:
-            solution[i] = 1 - solution[i]  # Flip the bit
-    return solution
+# def crossover(parent1, parent2):
+#     crossover_point = np.random.randint(1, len(parent1) - 1)
+#     child1 = np.concatenate((parent1[:crossover_point], parent2[crossover_point:]))
+#     child2 = np.concatenate((parent2[:crossover_point], parent1[crossover_point:]))
+#     return child1, child2
 
 
-def genetic_algorithm(H, K, pop_size=10000, num_generations=100, mutation_rate=0.1):
-    num_sets = len(H)
-    population = initialize_population(pop_size, num_sets)
-
-    for generation in range(num_generations):
-        fitnesses = [fitness(individual, H, K) for individual in population]
-
-        # Selection
-        selected_population = selection(population, fitnesses)
-
-        # Crossover
-        next_population = []
-        for i in range(0, len(selected_population), 2):
-            parent1, parent2 = selected_population[i], selected_population[i + 1]
-            child1, child2 = crossover(parent1, parent2)
-            next_population.extend([child1, child2])
-
-        # Mutation
-        population = [
-            mutate(individual, mutation_rate) for individual in next_population
-        ]
-
-        # Print the best fitness score in the current generation
-        best_fitness = max(fitnesses)
-        print(f"Generation {generation}: Best Fitness = {best_fitness}")
-
-        # Early stopping if we find an optimal solution
-        if best_fitness == len(K):
-            break
-
-    # Return the best solution found
-    best_index = np.argmax(fitnesses)
-    return population[best_index]
+# def mutate(solution, mutation_rate=0.01):
+#     for i in range(len(solution)):
+#         if np.random.rand() < mutation_rate:
+#             solution[i] = 1 - solution[i]  # Flip the bit
+#     return solution
 
 
-# Example usage
-H = list(paths)
-K = set(g.nodes)
-best_solution = genetic_algorithm(H, K)
-print(best_solution)
+# def genetic_algorithm(H, K, pop_size=10000, num_generations=100, mutation_rate=0.1):
+#     num_sets = len(H)
+#     population = initialize_population(pop_size, num_sets)
+
+#     for generation in range(num_generations):
+#         fitnesses = [fitness(individual, H, K) for individual in population]
+
+#         # Selection
+#         selected_population = selection(population, fitnesses)
+
+#         # Crossover
+#         next_population = []
+#         for i in range(0, len(selected_population), 2):
+#             parent1, parent2 = selected_population[i], selected_population[i + 1]
+#             child1, child2 = crossover(parent1, parent2)
+#             next_population.extend([child1, child2])
+
+#         # Mutation
+#         population = [
+#             mutate(individual, mutation_rate) for individual in next_population
+#         ]
+
+#         # Print the best fitness score in the current generation
+#         best_fitness = max(fitnesses)
+#         print(f"Generation {generation}: Best Fitness = {best_fitness}")
+
+#         # Early stopping if we find an optimal solution
+#         if best_fitness == len(K):
+#             break
+
+#     # Return the best solution found
+#     best_index = np.argmax(fitnesses)
+#     return population[best_index]
+
+
+# # Example usage
+# H = list(paths)
+# K = set(g.nodes)
+# best_solution = genetic_algorithm(H, K)
+# print(best_solution)
 
 
 # def isLegal(value, maxVal):
